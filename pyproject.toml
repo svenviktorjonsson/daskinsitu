@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "daskinsitu"
+version = "0.1.0"
+description = ""
+authors = ["Viktor Jonsson <viktor.jonsson@cellmax.com>"]
+license = "MIT"
+readme = "README.rst"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+dask = "^2022.2.0"
+h5py = "^3.6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+ptpython = "^3.0.20"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
