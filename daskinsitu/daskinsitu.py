@@ -6,22 +6,23 @@ method `close_open_files` if you don't want files to remain open.
 
 Examples:
 
->>> import daskinsitu as dais
->>> array = dais.from_h5dataset("path/to/file.h5","/dataset/path","real")
+>>> import daskinsitu as di
+>>> array = di.from_h5dataset("path/to/file.h5","/dataset/path","real")
 >>> array.shape
-(11, 31, 2, 181, 360)
+(11, 31, 2, 181, 3)
 
 >>> array[:3,:2,:1].shape
 (3, 2, 1, 181, 360)
 
->>> dais.compute(array[0,0,:,0,0])
+>>> di.compute(array[0,0,:,0,0])
 (array([-0.03268581, -0.01254339]),)
 
->>> group = dais.from_h5group("path/to/file.h5","/grouppath")
+>>> group = di.from_h5group("path/to/file.h5","/grouppath")
 
 >>> list(group.keys())
 ['RET 1', 'Frequency', 'Polarization', 'Theta', 'Phi', 'real', 'imag']
 """
+
 
 import dask.array as da
 import dask
@@ -71,8 +72,10 @@ def from_h5dataset(file_path: str,
 
     delayed = dask.delayed(_get_dataset)(file_path, dataset_path, field_name)
     if not {"dtype","shape"} <= set(kwargs):
-        kwargs.update(_get_ds_info(file_path, dataset_path, field_name))
+        ds_info = _get_ds_info(file_path, dataset_path, field_name)
+        kwargs.update(ds_info)
     return da.from_delayed(delayed, **kwargs)
+
 
 def from_h5group(file_path: str, group_path: str) -> dict[str, da.Array]:
     """Loads all datasets in a h5-group via the function `from_h5dataset`.
@@ -111,6 +114,7 @@ def from_h5group(file_path: str, group_path: str) -> dict[str, da.Array]:
                                              dtype = dtype)
         return output
 
+
 def compute(*args: Any) -> tuple:
     """Analogous to dask.array.compute but will close open files afterwards.
 
@@ -129,8 +133,8 @@ def compute(*args: Any) -> tuple:
         NotDatasetError: If any of the arguments was created from a group path
                          rather than a dataset path.
     """
-
-    result = da.compute(*args)
+    is_wrapper = lambda x: isinstance(x, h5py._hl.dataset.FieldsWrapper)
+    result = tuple([x[:] if is_wrapper else x for x in da.compute(*args)])
     close_open_files()
     return result
 
@@ -151,6 +155,7 @@ def _get_dataset(file_path, dataset_path, field_name):
     _raise_error_if_not_dataset(ds)
     return ds.fields(field_name) if field_name else ds
 
+
 def _get_ds_info(file_path, dataset_path, field_name):
     _raise_error_if_file_not_found(file_path)
     with h5py.File(file_path) as file:
@@ -159,9 +164,11 @@ def _get_ds_info(file_path, dataset_path, field_name):
         return {"shape" : ds.shape, 
                 "dtype" : ds.dtype[field_name] if field_name else ds.dtype}
 
+
 def _raise_error_if_file_not_found(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError
+
 
 def _raise_error_if_not_dataset(obj):
     if not isinstance(obj, h5py.Dataset):
